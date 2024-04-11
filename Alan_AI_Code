@@ -1,0 +1,190 @@
+// Instructions : create an account in Alan AI and integrate both react application  and alan ai studio using Alan Key (which will find after account creation)
+
+
+intent('What does this web app do?', 'how can you help me?',
+       reply('This is News Assistance Application.'));
+
+const API_KEY = 'Alan_key';
+let savedArticles = [];
+
+// latest headlines/news
+intent('(Provide|Fetch|Get|Show|Share) (with me | me) the (latest|recent) news.', (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/top-headlines?country=us&apiKey=${API_KEY}`;
+    
+    api.axios.get(NEWS_API_URL)
+    .then((response) => {
+        const { data, status } = response;
+
+        if (status !== 200) {
+            console.error('Error:', status);
+            p.play('Sorry, there was an error fetching the news. Please try again later.');
+            return;
+        }
+
+        try {
+            const { articles } = data;
+
+            if (!articles || !articles.length) {
+                p.play('Sorry, no articles were found for this source.');
+                return;
+            }
+
+            savedArticles = articles;
+
+            p.play({ command: 'newHeadlines', articles });
+            p.play('Here are the (latest|recent) news.');
+            p.play('Would you like me to read the headlines?');
+            p.then(confirmation);
+
+         
+        } catch (parseError) {
+            console.error('Error parsing JSON:', parseError);
+            p.play('Sorry, there was an error processing the news data. Please try again later.');
+        }
+    })
+    .catch((error) => {
+        console.error('Axios request error:', error);
+        p.play('Sorry, there was an error fetching the news. Please try again later.');
+    });
+})
+
+
+// news by sources
+intent(`Show me the news from $(source* (.*))`, (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/top-headlines?apiKey=${API_KEY}`;
+
+    if (p.source.value) {
+        NEWS_API_URL = `${NEWS_API_URL}&sources=${p.source.value.toLowerCase().split(" ").join('-')}`
+    }
+
+   api.request(NEWS_API_URL, {headers: {"user-agent": 'user agent' }}, (error, response, body) => {
+   const {articles} = JSON.parse(body);
+
+    if(!articles.length) {
+       p.play('Sorry, please try searching for news from a different source');
+        return;
+    }
+     savedArticles = articles;
+
+        p.play({ command: 'newHeadlines', articles});
+        p.play(`Here are the (latest|recent) ${p.source.value} news.`);
+       
+       
+        p.play('Would you like me to read the headlines?');
+        p.then(confirmation);
+
+       
+   });
+}) 
+
+//news by terms
+
+intent(`show me the news on $(term* (.*))`, (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/everything?apiKey=${API_KEY}`;
+
+    if (p.term.value) {
+        NEWS_API_URL = `${NEWS_API_URL}&q=${p.term.value}`
+    }
+
+   api.request(NEWS_API_URL, {headers: {"user-agent": 'user agent' }}, (error, response, body) => {
+   const {articles} = JSON.parse(body);
+
+    if(!articles.length) {
+       p.play('Sorry, please try searching for something else.');
+        return;
+    }
+     savedArticles = articles;
+
+        p.play({ command: 'newHeadlines', articles});
+        p.play(`Here are the (latest|recent) articles on ${p.term.value}.`);
+       
+       
+        p.play('Would you like me to read the headlines?');
+        p.then(confirmation);
+
+       
+   });
+})
+
+
+//news by categories 
+const CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology'];
+const CATEGORIES_INTENT = `${CATEGORIES.map((category) => `${category}~${category}`).join('|')}`;
+
+intent(`(show me|what is|tell me|what's|what are|what're|read) (the|) (recent|latest|) $(N news|headlines) (in|about|on|) $(C~ ${CATEGORIES_INTENT})`,
+  `(read|show|get|bring me|give me) (the|) (recent|latest) $(C~ ${CATEGORIES_INTENT}) $(N news|headlines)`, (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/top-headlines?country=us&apiKey=${API_KEY}`;
+    
+    if(p.C.value) {
+        NEWS_API_URL = `${NEWS_API_URL}&category=${p.C.value}`
+    }
+    
+    api.axios.get(NEWS_API_URL)
+    .then((response) => {
+        const { data, status } = response;
+
+        if (status !== 200) {
+            console.error('Error:', status);
+            p.play('Sorry, there was an error fetching the news. Please try again later.');
+            return;
+        }
+
+        try {
+            const { articles } = data;
+
+            if (!articles || !articles.length) {
+                p.play('Sorry, no articles were found for this category.');
+                return;
+            }
+
+            savedArticles = articles;
+
+            p.play({ command: 'newHeadlines', articles });
+
+            if (p.C.value) {
+                p.play(`Here are the (latest|recent) articles on ${p.C.value}.`);
+            } else {
+                p.play('Here are the (latest|recent) news');
+            }
+            
+            p.play('Would you like me to read the headlines?');
+            p.then(confirmation);
+
+        } catch (parseError) {
+            console.error('Error parsing JSON:', parseError);
+            p.play('Sorry, there was an error processing the news data. Please try again later.');
+        }
+    })
+    .catch((error) => {
+        console.error('Axios request error:', error);
+        p.play('Sorry, there was an error fetching the news. Please try again later.');
+    });
+});
+
+//read headlines
+const confirmation = context(()=>{
+    intent('Yes', async (p)=> {
+        p.play('Sure');
+        for(let i=0; i<savedArticles.length; i++){
+            p.play({ command: 'highlight', articles: savedArticles[i]});
+            p.play(`${savedArticles[i].title}`);
+        }
+    })
+    
+    intent('No', (p)=> {
+        p.play('Ok, Let me know if you want anything else');
+    })
+})
+
+
+intent('open (the|) (article|) (number|) $(number* (.*))', (p) => {
+    if(p.number.value) {
+        p.play({ command:'open', number: p.number.value, articles: savedArticles});
+    }
+})
+
+//going back
+intent('(go|) back', (p) => {
+    p.play('Sure, going back');
+    p.play({ command: 'newHeadlines', articles: []})
+})
