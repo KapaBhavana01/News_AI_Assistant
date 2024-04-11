@@ -4,4 +4,4 @@ It utilizes **Alan AI** for voice-based interaction, allowing users to inquire a
 The application provides relevant news articles while also reading them aloud. And also imported Alan AI inbulid Small Talk script which make our news assistance can have more interactive conversation with user.
 
 
-![Image_Demo](https://github.com/KapaBhavana01/News_AI_Assistant/assets/163066152/35a08980-eaf3-46c5-9137-ba20028acb1d)
+![image_demo](https://github.com/KapaBhavana01/News_AI_Assistant/assets/163066152/7d68d349-0aef-4d3b-9cc4-9b65eeb99d95)
